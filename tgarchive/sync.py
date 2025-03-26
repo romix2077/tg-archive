@@ -28,7 +28,7 @@ class Sync:
 
     config = {}
     db = None
-    fetched_avatar_ids = set()
+    fetched_user_ids = set()
 
     def __init__(self, config, session_file, db):
         self.config = config
@@ -89,13 +89,14 @@ class Sync:
             updated_date_info = ArchivedChatInfo(
                 id=old_archived_chat_info.id,
                 peer_id=old_archived_chat_info.peer_id,
-                peername=old_archived_chat_info.peername, 
+                peername=old_archived_chat_info.peername,
                 title=old_archived_chat_info.title,
                 desc=old_archived_chat_info.desc,
                 archive_date=datetime.now().astimezone(timezone.utc),
-                avatar=old_archived_chat_info.avatar
+                avatar=old_archived_chat_info.avatar,
             )
             self.db.update_archived_chat_info(updated_date_info)
+
         n = 0
         while True:
             has = False
@@ -108,7 +109,10 @@ class Sync:
                 has = True
 
                 # Insert the records into DB.
-                self.db.insert_user(m.user)
+                real_user_id= self._get_real_user_id(m.user)
+                if real_user_id not in self.fetched_user_ids:
+                    self.db.insert_user(m.user)
+                    self.fetched_user_ids.add(real_user_id)
 
                 if m.media:
                     self.db.insert_media(m.media)
@@ -307,22 +311,55 @@ class Sync:
             logging.info("flood waited: have to wait {} seconds".format(e.seconds))
 
     def _get_user(self, u, chat) -> User:
-        # Process group messages
+        """Get or create a User object from Telegram user/chat entity.
 
+        Args:
+            u: Telegram user entity
+            chat: Telegram chat entity
+
+        Returns:
+            User: User object with the entity information
+        """
+        def create_empty_user(user_id: int) -> User:
+            """Creates an empty User object with just the ID."""
+            return User(
+                id=user_id,
+                username=None, 
+                first_name=None,
+                last_name=None,
+                tags=None,
+                avatar=None,
+                usertype=None
+            )
+
+        # Handle chat messages (when u is None but chat exists)
         if u is None:
-            if chat and chat.title:
-                return User(
-                    id=chat.id,
-                    username=chat.username,
-                    first_name=chat.title,
-                    last_name=None,
-                    tags=["group_self"],
-                    avatar=self._downloadAvatarForUserOrChat(chat),
-                    usertype="channel",
-                )
-            return None
+            if not (chat and chat.title):
+                return None
 
-        # Handle inaccessible channels
+            real_chat_id = self._get_real_user_id(chat)
+            if real_chat_id in self.fetched_user_ids:
+                return create_empty_user(real_chat_id)
+            
+            usertype = "chat"
+            if isinstance(chat, telethon.tl.types.Channel):
+                usertype="channel/mega_group"
+            return User(
+                id=chat.id,
+                username=chat.username,
+                first_name=chat.title,
+                last_name=None,
+                tags=["group_self"],
+                avatar=self._downloadAvatarForUserOrChat(chat),
+                usertype=usertype,
+            )
+
+        # Handle normal user messages
+        real_user_id = self._get_real_user_id(u)
+        if real_user_id in self.fetched_user_ids:
+            return create_empty_user(real_user_id)
+
+            # Handle inaccessible channels
         if isinstance(u, telethon.tl.types.ChannelForbidden):
             return User(
                 id=u.id,
@@ -333,11 +370,9 @@ class Sync:
                 avatar=None,
                 usertype="channel",
             )
-
         # Generate tags
         tags = []
         is_normal_user = isinstance(u, telethon.tl.types.User)
-
         if is_normal_user and u.bot:
             tags.append("bot")
         if hasattr(u, "scam") and u.scam:
@@ -348,7 +383,6 @@ class Sync:
             tags.append("deleted")
             u.first_name = 'Deleted'
             u.last_name = 'Account'
-
         # Handle channel
         if isinstance(u, telethon.tl.types.Channel):
             return User(
@@ -360,7 +394,6 @@ class Sync:
                 avatar=self._downloadAvatarForUserOrChat(u),
                 usertype="channel",
             )
-
         # Handle normal users
         return User(
             id=u.id,
@@ -656,23 +689,13 @@ class Sync:
         )
 
     def _downloadAvatarForUserOrChat(self, entity):
-        entity_real_id = entity.id
-        if isinstance(entity, telethon.tl.types.Chat):
-            entity_real_id = -entity.id
-        if isinstance(entity, telethon.tl.types.Channel):
-            entity_real_id = -entity.id - 1000000000000
-        entity_real_id
         avatar = None
         if self.config["download_avatars"]:
             try:
-                if entity_real_id not in self.fetched_avatar_ids:
-                    fname = self._download_avatar(entity)
-                    avatar = fname
-                    self.fetched_avatar_ids.add(entity_real_id)
+                fname = self._download_avatar(entity)
+                avatar = fname
             except Exception as e:
-                logging.error(
-                    "error downloading avatar: #{}: {}".format(entity_real_id, e)
-                )
+                logging.error("error downloading avatar: #{}: {}".format(entity.id, e))
         return avatar
 
     def _generate_user_label(self, user):
@@ -689,3 +712,15 @@ class Sync:
         if user.id:
             label += f" id: {user.id}"
         return label
+
+    def _get_real_user_id(self, user):
+        if isinstance(user, telethon.tl.types.Chat):
+            return -user.id
+        if isinstance(user, telethon.tl.types.Channel):
+            return -user.id - 1000000000000
+        if isinstance(user, User):
+            if user.usertype == 'chat':
+                return -user.id
+            if user.usertype == 'channel/mega_group':
+                return -user.id - 1000000000000
+        return user.id
