@@ -85,7 +85,17 @@ class Sync:
             logging.info(
                 "Updated chat info for group: %s", new_archived_chat_info.title
             )
-
+        else:
+            updated_date_info = ArchivedChatInfo(
+                id=old_archived_chat_info.id,
+                peer_id=old_archived_chat_info.peer_id,
+                peername=old_archived_chat_info.peername, 
+                title=old_archived_chat_info.title,
+                desc=old_archived_chat_info.desc,
+                archive_date=datetime.now().astimezone(timezone.utc),
+                avatar=old_archived_chat_info.avatar
+            )
+            self.db.update_archived_chat_info(updated_date_info)
         n = 0
         while True:
             has = False
@@ -469,10 +479,10 @@ class Sync:
     def _fast_download_document(self, msg) -> str:
         """
         Use FastTelethon to download media files in messages and return the saved path.
-        
+
         Args:
             msg: Message object containing media
-            
+
         Returns:
             str: Save path of the downloaded file
         """
@@ -485,7 +495,10 @@ class Sync:
             date = datetime.now()
             document = msg
 
-        if isinstance(document, (telethon.tl.types.MessageMediaDocument, telethon.tl.types.Document)):
+        if isinstance(
+            document,
+            (telethon.tl.types.MessageMediaDocument, telethon.tl.types.Document),
+        ):
             if isinstance(document, telethon.tl.types.MessageMediaDocument):
                 document = document.document
             kind, possible_names = self.client._get_kind_and_names(document.attributes)
@@ -525,7 +538,10 @@ class Sync:
         try:
             use_fast = self.config["fast_download"]
             # Choose download method based on configuration
-            if use_fast and isinstance(msg.media, (telethon.tl.types.MessageMediaDocument, telethon.tl.types.Document)):
+            if use_fast and isinstance(
+                msg.media,
+                (telethon.tl.types.MessageMediaDocument, telethon.tl.types.Document),
+            ):
                 fpath = self._fast_download_document(msg)
             else:
                 # Use original download method for other media types
@@ -635,7 +651,7 @@ class Sync:
             peername=entity.username,
             title=title,
             desc=description,
-            archive_date=datetime.now().astimezone(timezone.utc), 
+            archive_date=datetime.now().astimezone(timezone.utc),
             avatar=self._downloadAvatarForUserOrChat(entity),
         )
 

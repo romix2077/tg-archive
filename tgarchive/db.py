@@ -73,7 +73,7 @@ ArchivedChatInfo = namedtuple(
         "desc",
         "archive_date",
         "avatar",
-    ],  
+    ],
     defaults=[None, None, None, None, None, None, None],
 )
 
@@ -224,7 +224,7 @@ class DB:
             last_id: Start message ID
             limit: Number of messages to fetch per batch
         """
-        
+
         query = """
             SELECT messages.id, messages.type, messages.date, messages.edit_date,
             messages.content, messages.reply_to, messages.post_author, messages.user_id, 
@@ -320,6 +320,29 @@ class DB:
                 c.avatar,
             ),
         )
+
+    def update_archived_chat_info(self, chat_info: ArchivedChatInfo):
+        cur = self.conn.cursor()
+        cur.execute(
+            """UPDATE archived_chat_info 
+               SET peer_id = ?,
+                   title = ?,
+                   peername = ?,
+                   desc = ?,
+                   archive_date = ?,
+                   avatar = ?
+               WHERE id = ?""",
+            (
+                chat_info.peer_id,
+                chat_info.title,
+                chat_info.peername,
+                chat_info.desc,
+                chat_info.archive_date,
+                chat_info.avatar,
+                chat_info.id,
+            ),
+        )
+        self.conn.commit()
 
     def insert_user(self, u: User):
         """Insert a user and if they exist, update the fields."""
