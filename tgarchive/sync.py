@@ -109,10 +109,9 @@ class Sync:
                 has = True
 
                 # Insert the records into DB.
-                real_user_id= self._get_real_user_id(m.user)
-                if real_user_id not in self.fetched_user_ids:
+                if m.user.id not in self.fetched_user_ids:
                     self.db.insert_user(m.user)
-                    self.fetched_user_ids.add(real_user_id)
+                    self.fetched_user_ids.add(m.user.id)
 
                 if m.media:
                     self.db.insert_media(m.media)
@@ -345,7 +344,7 @@ class Sync:
             if isinstance(chat, telethon.tl.types.Channel):
                 usertype="channel/mega_group"
             return User(
-                id=chat.id,
+                id=real_chat_id,
                 username=chat.username,
                 first_name=chat.title,
                 last_name=None,
@@ -362,7 +361,7 @@ class Sync:
             # Handle inaccessible channels
         if isinstance(u, telethon.tl.types.ChannelForbidden):
             return User(
-                id=u.id,
+                id=real_user_id,
                 username=None,
                 first_name=u.title,
                 last_name=None,
@@ -386,7 +385,7 @@ class Sync:
         # Handle channel
         if isinstance(u, telethon.tl.types.Channel):
             return User(
-                id=u.id,
+                id=real_user_id,
                 username=u.username,
                 first_name='Channel: ',
                 last_name=u.title,
@@ -396,7 +395,7 @@ class Sync:
             )
         # Handle normal users
         return User(
-            id=u.id,
+            id=real_user_id,
             username=u.username,
             first_name=u.first_name if is_normal_user else None,
             last_name=u.last_name if is_normal_user else None,
@@ -680,7 +679,7 @@ class Sync:
         if hasattr(entity, 'title') and entity.title:
             title = entity.title
         return ArchivedChatInfo(
-            peer_id=entity.id,
+            peer_id=self._get_real_user_id(entity),
             peername=entity.username,
             title=title,
             desc=description,
