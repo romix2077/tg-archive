@@ -23,15 +23,12 @@ def get_full_name(user_dict):
     return None
 
 
-def namedtuple_to_dict(obj, timezone):
+def namedtuple_to_dict(obj):
     """Convert namedtuple objects to dictionaries and remove None values"""
-    if isinstance(obj, (str, int, float, bool)) or obj is None:
-        return obj
-    elif isinstance(obj, datetime):
-        timezone = pytz.timezone(timezone)
-        return obj.now(timezone).strftime("%Y-%m-%d %H:%M:%S %z")
-    elif hasattr(obj, '_asdict'):
-        result = {k: namedtuple_to_dict(v, timezone) for k, v in obj._asdict().items()}
+    if isinstance(obj, datetime):
+        return obj.strftime("%Y-%m-%d %H:%M:%S %z")
+    if hasattr(obj, '_asdict'):
+        result = {k: namedtuple_to_dict(v) for k, v in obj._asdict().items()}
 
         # Special handling for user dictionary
         if hasattr(obj, 'username'):  # Check if this is a User object
@@ -52,13 +49,11 @@ def namedtuple_to_dict(obj, timezone):
 
         return {k: v for k, v in result.items() if v is not None}
     elif isinstance(obj, (list, tuple)):
-        return [namedtuple_to_dict(item, timezone) for item in obj if item is not None]
+        return [namedtuple_to_dict(item) for item in obj if item is not None]
     elif isinstance(obj, dict):
         return {
             k: v
-            for k, v in {
-                k: namedtuple_to_dict(v, timezone) for k, v in obj.items()
-            }.items()
+            for k, v in {k: namedtuple_to_dict(v) for k, v in obj.items()}.items()
             if v is not None
         }
     return obj
@@ -76,15 +71,10 @@ def export_all_to_json(db, config):
     messages = []
     timeline = defaultdict(list)
 
-    messages = [
-        namedtuple_to_dict(msg, config.get('timezone', 'UTC'))
-        for msg in db.get_messages(limit=None)
-    ]
+    messages = [namedtuple_to_dict(msg) for msg in db.get_messages(limit=None)]
 
     # Get group information
-    chat_info = namedtuple_to_dict(
-        db.get_last_archived_chat_info(), config.get('timezone', 'UTC')
-    )
+    chat_info = namedtuple_to_dict(db.get_last_archived_chat_info())
     del chat_info["id"]
 
     # Use system timezone or configured timezone

@@ -234,12 +234,6 @@ def main():
         config = get_config(args.config)
         formats = [f.lower() for f in args.format]  # convert to lowercase
 
-        if "json" in formats:
-            logging.info("generating JSON file")
-            db = DB(args.data, config["timezone"])
-            export_all_to_json(db, config)
-            logging.info("published JSON to '%s'", config["json_output"])
-
         if "html" in formats:
             logging.info("building HTML site")
             b = Build(config, DB(args.data, config["timezone"]), args.symlink)
@@ -248,3 +242,9 @@ def main():
                 b.load_rss_template(args.rss_template)
             b.build()
             logging.info("published HTML to directory '%s'", config["publish_dir"])
+
+        if "json" in formats:
+            logging.info("generating JSON file")
+            db = DB(args.data, config["timezone"])
+            export_all_to_json(db, config)
+            logging.info("published JSON to '%s'", config["json_output"])
