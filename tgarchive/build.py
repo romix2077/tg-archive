@@ -1,7 +1,9 @@
 from collections import OrderedDict, deque
+from datetime import datetime
 import logging
 import math
 import os
+from typing import Any, Dict
 import pkg_resources
 import re
 import shutil
@@ -33,6 +35,7 @@ class Build:
         # parent messages that may be on arbitrary pages.
         self.page_ids = {}
         self.timeline = OrderedDict()
+        self.archived_chat_info = self.db.get_last_archived_chat_info()
 
     def build(self):
         # (Re)create the output directory.
@@ -54,19 +57,26 @@ class Build:
         for month in timeline:
             # Get the days + message counts for the month.
             dayline = OrderedDict()
-            for d in self.db.get_dayline(month.date.year, month.date.month, self.config["per_page"]):
+            for d in self.db.get_dayline(
+                month.date.year, month.date.month, self.config["per_page"]
+            ):
                 dayline[d.slug] = d
 
             # Paginate and fetch messages for the month until the end..
             page = 0
             last_id = 0
-            total = self.db.get_message_count(
-                month.date.year, month.date.month)
+            total = self.db.get_message_count(month.date.year, month.date.month)
             total_pages = math.ceil(total / self.config["per_page"])
 
             while True:
-                messages = list(self.db.get_messages(month.date.year, month.date.month,
-                                                     last_id, self.config["per_page"]))
+                messages = list(
+                    self.db.get_messages(
+                        month.date.year,
+                        month.date.month,
+                        last_id,
+                        self.config["per_page"],
+                    )
+                )
 
                 if len(messages) == 0:
                     break
@@ -84,23 +94,26 @@ class Build:
                 if self.config["publish_rss_feed"]:
                     rss_entries.extend(messages)
 
-                self._render_page(messages, month, dayline,
-                                  fname, page, total_pages)
+                self._render_page(messages, month, dayline, fname, page, total_pages)
 
         # The last page chronologically is the latest page. Make it index.
         if fname:
             if self.symlink:
-                os.symlink(fname, os.path.join(self.config["publish_dir"], "index.html"))
+                os.symlink(
+                    fname, os.path.join(self.config["publish_dir"], "index.html")
+                )
             else:
-                shutil.copy(os.path.join(self.config["publish_dir"], fname),
-                            os.path.join(self.config["publish_dir"], "index.html"))
+                shutil.copy(
+                    os.path.join(self.config["publish_dir"], fname),
+                    os.path.join(self.config["publish_dir"], "index.html"),
+                )
 
         # Generate RSS feeds.
         if self.config["publish_rss_feed"]:
             self._build_rss(rss_entries, "index.rss", "index.atom")
 
     def load_template(self, fname):
-        with open(fname, "r") as f:
+        with open(fname, "r", encoding="utf8") as f:
             self.template = Template(f.read(), autoescape=True)
 
     def load_rss_template(self, fname):
@@ -108,37 +121,40 @@ class Build:
             self.rss_template = Template(f.read(), autoescape=True)
 
     def make_filename(self, month, page) -> str:
-        fname = "{}{}.html".format(
-            month.slug, "_" + str(page) if page > 1 else "")
+        fname = "{}{}.html".format(month.slug, "_" + str(page) if page > 1 else "")
         return fname
 
     def _render_page(self, messages, month, dayline, fname, page, total_pages):
-        html = self.template.render(config=self.config,
-                                    timeline=self.timeline,
-                                    dayline=dayline,
-                                    month=month,
-                                    messages=messages,
-                                    page_ids=self.page_ids,
-                                    pagination={"current": page,
-                                                "total": total_pages},
-                                    make_filename=self.make_filename,
-                                    nl2br=self._nl2br)
+        html = self.template.render(
+            config=self.config,
+            archived_chat_info=self.archived_chat_info,
+            timeline=self.timeline,
+            dayline=dayline,
+            month=month,
+            messages=messages,
+            page_ids=self.page_ids,
+            pagination={"current": page, "total": total_pages},
+            make_filename=self.make_filename,
+            nl2br=self._nl2br,
+        )
 
-        with open(os.path.join(self.config["publish_dir"], fname), "w", encoding="utf8") as f:
+        with open(
+            os.path.join(self.config["publish_dir"], fname), "w", encoding="utf8"
+        ) as f:
             f.write(html)
 
     def _build_rss(self, messages, rss_file, atom_file):
         f = FeedGenerator()
         f.id(self.config["site_url"])
         f.generator(
-            "tg-archive {}".format(pkg_resources.get_distribution("tg-archive").version))
+            "tg-archive {}".format(pkg_resources.get_distribution("tg-archive").version)
+        )
         f.link(href=self.config["site_url"], rel="alternate")
         f.title(self.config["site_name"].format(group=self.config["group"]))
         f.subtitle(self.config["site_description"])
 
         for m in messages:
-            url = "{}/{}#{}".format(self.config["site_url"],
-                                    self.page_ids[m.id], m.id)
+            url = "{}/{}#{}".format(self.config["site_url"], self.page_ids[m.id], m.id)
             e = f.add_entry()
             e.id(url)
             e.title("@{} on {} (#{})".format(m.user.username, m.date, m.id))
@@ -147,8 +163,11 @@ class Build:
 
             media_mime = ""
             if m.media and m.media.url:
-                murl = "{}/{}/{}".format(self.config["site_url"],
-                                         os.path.basename(self.config["media_dir"]), m.media.url)
+                murl = "{}/{}/{}".format(
+                    self.config["site_url"],
+                    os.path.basename(self.config["media_dir"]),
+                    m.media.url,
+                )
                 media_path = "{}/{}".format(self.config["media_dir"], m.media.url)
                 media_mime = "application/octet-stream"
                 media_size = 0
@@ -173,11 +192,13 @@ class Build:
 
     def _make_abstract(self, m, media_mime):
         if self.rss_template:
-            return self.rss_template.render(config=self.config,
-                                            m=m,
-                                            media_mime=media_mime,
-                                            page_ids=self.page_ids,
-                                            nl2br=self._nl2br)
+            return self.rss_template.render(
+                config=self.config,
+                m=m,
+                media_mime=media_mime,
+                page_ids=self.page_ids,
+                nl2br=self._nl2br,
+            )
         out = m.content
         if not out and m.media:
             out = m.media.title
@@ -212,14 +233,52 @@ class Build:
         mediadir = self.config["media_dir"]
         if os.path.exists(mediadir):
             if self.symlink:
-                self._relative_symlink(os.path.abspath(mediadir), os.path.join(
-                    pubdir, os.path.basename(mediadir)))
+                self._relative_symlink(
+                    os.path.abspath(mediadir),
+                    os.path.join(pubdir, os.path.basename(mediadir)),
+                )
             else:
-                shutil.copytree(mediadir, os.path.join(
-                    pubdir, os.path.basename(mediadir)))
+                shutil.copytree(
+                    mediadir, os.path.join(pubdir, os.path.basename(mediadir))
+                )
 
     def _relative_symlink(self, src, dst):
         dir_path = os.path.dirname(dst)
         src = os.path.relpath(src, dir_path)
         dst = os.path.join(dir_path, os.path.basename(src))
         return os.symlink(src, dst)
+    
+def _namedtuple_to_dict(obj: Any) -> Dict:
+    """Convert namedtuple objects (including nested ones) to dictionary and remove None values"""
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, (list, tuple)):
+        return [_namedtuple_to_dict(item) for item in obj if item is not None]
+    elif hasattr(obj, '_asdict'):  # Check if it's a namedtuple
+        return {
+            k: v
+            for k, v in {
+                k: _namedtuple_to_dict(v) for k, v in obj._asdict().items()
+            }.items()
+            if v is not None
+        }
+    elif isinstance(obj, dict):
+        return {
+            k: v
+            for k, v in {k: _namedtuple_to_dict(v) for k, v in obj.items()}.items()
+            if v is not None
+        }
+    return obj
+
+
+def _export_messages_to_json(db, year: int, month: int, output_file: str):
+    """Export messages of specified year and month to JSON file"""
+    import json
+
+    messages = [Build._namedtuple_to_dict(msg) for msg in db.get_messages(year, month)]
+
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
+

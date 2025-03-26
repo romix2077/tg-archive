@@ -3,17 +3,18 @@
 # Signup for it here: https://my.telegram.org/auth?to=apps
 # You can remove api_id and api_hash here, and instead,
 # pass the environment variables API_ID and API_HASH to tg-archive
-api_id: "123456"
-api_hash: "your_api_hash"
+api_id: "YOUR_API_ID"
+api_hash: "YOUR_API_HASH"
 
 # Telegram channel / group name or your group username or your group id(a negative number) to import. 
 # Your user account that was used to creat the API ID should 
 # be a member of this group.
 
-group: "your_group_name or your_group_username or your_group_id(a negative number)"
+group: "example_group"
 
 # Avatars and media will be downloaded into media_dir.
 download_media: True
+fast_download: False
 download_avatars: True
 avatar_size: [64, 64] # Width, Height.
 media_dir: "media"
@@ -21,6 +22,7 @@ media_dir: "media"
 # The list of media/file mime types (in lowercase) to download.
 # eg: ["image/gif", "image/jpeg", "image/png", "video/mp4", "application/zip", "application/pdf"]
 # If left empty, files of all types are downloaded.
+# media_mime_types: ["image/gif", "image/jpeg", "image/png"]
 media_mime_types: []
 
 # Takeout mode allows you to fetch messages at a higher rate than the standard mode.
@@ -34,7 +36,7 @@ proxy:
   enable: False
   protocol: "socks5"
   addr: "127.0.0.1"
-  port: 1080
+  port: 7890
 
 # These should be configured carefully to not get rate limited by Telegram.
 # Number of messages to fetch in one batch.
@@ -47,11 +49,12 @@ fetch_wait: 5
 # Max number of messages to fetch across all batches before the stopping.
 # This should be greater than fetch_batch_size.
 # Set to 0 to never stop until all messages have been fetched.
-fetch_limit: 0
+fetch_limit: 1000000
 
+json_output: "archive.json"
 publish_dir: "site"
 static_dir: "static"
-per_page: 500
+per_page: 500000
 show_day_index: True
 
 # URL to link Telegram group names and usernames.
@@ -59,7 +62,7 @@ telegram_url: "https://t.me/{id}"
 
 # IMPORTANT: Telegram shows the full name on your (API key holder's)
 # phonebook for users who are in your phonebook.
-show_sender_fullname: False
+show_sender_fullname: True
 
 # Timezone to apply on timestamps when building the site. If no value
 # is specified, all timestamps are in UTC:
@@ -71,7 +74,7 @@ rss_feed_entries: 100 # Show Latest N messages in the RSS feed.
 
 # Root URL where the site will be hosted. No trailing slash.
 site_url: "https://mysite.com"
-site_name: "@{group} - Telegram group archive"
+# site_name: "@{group} - Telegram group archive"
 site_description: "Public archive of Telegram messages."
 meta_description: "@{group} {date} - Telegram message archive."
 page_title: "Page {page} - {date} @{group} Telegram message archive."

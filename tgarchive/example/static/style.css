@@ -77,12 +77,24 @@ ul {
 	.logo {
 		margin-bottom: 30px;
 	}
-	.logo a {
-		border: 0;
-	}
-	.logo .desc {
-		margin-top: 15px;
-	}
+		.logo a {
+			border: 0;
+		}
+			.logo .desc {
+				margin-top: 15px;
+			}
+				.logo .desc .title{
+					font-weight: bold;
+				}
+				.logo .desc .peer-id{
+					font-style: italic;
+				}
+			.logo .archive-date{
+				font-size: var(--size-small);
+				font-style: italic;
+				color: var(--light);
+				text-align: right;
+			}
 
 	.nav {
 		background: #fff;
@@ -258,14 +270,29 @@ div.body > div.text {
 			margin-right: auto;
 			color: inherit;
 		}
+		.messages .meta .tags {
+			margin-right: 5px;
+		}
 		.messages .meta .reply,
 		.messages .meta .id {
 			color: var(--light);
 		}
 		.messages .meta .reply,
 		.messages .meta .id,
-		.messages .meta .date {
+		.messages .meta .date,
+		.messages .meta .edited {
 			margin: 0 0 0 30px;
+		}
+
+	.messages .fwd_header{
+		margin:12px 0;
+	}
+		.messages .fwd_header .username{
+			font-size:15px;
+			font-style: italic;
+			color: #3a6d99;
+			line-height: 20px;
+			max-width: 60%;
 		}
 
 	/* Body area */
@@ -312,8 +339,7 @@ div.body > div.text {
 			min-width: 3px;
 		}
 
-	.messages .type-user_joined .text,
-	.messages .type-user_joined_by_link .text {
+	.messages .type-action .text {
 		color: var(--light);
 		font-style: italic;
 	}
