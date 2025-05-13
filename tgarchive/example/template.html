@@ -211,7 +211,7 @@
 								<a href="{{ m.media.url }}" rel="noreferer nopener nofollow">{{ m.media.title or "Link"
 									}}</a>
 								{% if m.media.description %}
-								<p>{{ m.media.description }}</p>
+								<div class="text">{{ m.media.description }}</div>
 								{% endif %}
 								{% elif m.media.type == "poll" %}
 								<div class="poll">

@@ -203,7 +203,7 @@ ul {
 	min-height: 100vh;
 }
 
-div.body > div.text {
+div.body div.text,div.media {
 	overflow-wrap: anywhere;
 }
 
@@ -257,7 +257,9 @@ div.body > div.text {
 			overflow: hidden;
 			border-radius: 100%;
 		}
-
+	.message .username{
+		overflow-wrap: anywhere;
+	}
 	.messages .meta {
 		color: var(--light);
 		font-size: var(--size-small);
@@ -282,6 +284,7 @@ div.body > div.text {
 		.messages .meta .date,
 		.messages .meta .edited {
 			margin: 0 0 0 30px;
+			min-width: max-content;
 		}
 
 	.messages .fwd_header{
