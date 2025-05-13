@@ -217,7 +217,7 @@ class DB:
         self, year=None, month=None, last_id=0, limit=500
     ) -> Iterator[Message]:
         """Get messages
-
+    
         Args:
             year: Year, get all messages if None
             month: Month, get all messages if None
@@ -225,7 +225,7 @@ class DB:
             limit: Number of messages to fetch per batch
         """
 
-        query = """
+        query =  """
             SELECT messages.id, messages.type, messages.date, messages.edit_date,
             messages.content, messages.reply_to, messages.post_author, messages.user_id, 
             users.username, users.first_name, users.last_name, users.tags, users.avatar,
@@ -239,13 +239,15 @@ class DB:
             WHERE messages.id > ?
         """
 
-        params = [last_id]
+        params = [last_id] 
+        offset = self.tz.utcoffset(datetime.utcnow()).total_seconds() / 3600
 
-        # Add time filter condition if year and month are specified
+        # Add time filter condition if year and month are specified, adjusting for timezone
         if year is not None and month is not None:
-            query += " AND strftime('%Y%m', messages.date) = ?"
-            params.append("{}{:02d}".format(year, month))
+            query += " AND strftime('%Y%m', datetime(messages.date, ? || ' hours')) = ?"
+            params.extend([offset, "{}{:02d}".format(year, month)])
 
+        
         # Add sorting and limits
         if limit:
             query += " ORDER by messages.id LIMIT ?"
@@ -258,14 +260,14 @@ class DB:
             yield self._make_message(r)
 
     def get_message_count(self, year, month) -> int:
-        date = "{}{:02d}".format(year, month)
+        offset = self.tz.utcoffset(datetime.utcnow()).total_seconds() / 3600
 
         cur = self.conn.cursor()
         cur.execute(
             """
-            SELECT COUNT(*) FROM messages WHERE strftime('%Y%m', date) = ?
+            SELECT COUNT(*) FROM messages WHERE strftime('%Y%m', datetime(date, ? || ' hours')) = ?
             """,
-            (date,),
+            (offset, "{}{:02d}".format(year, month)),
         )
 
         (total,) = cur.fetchone()
@@ -404,7 +406,13 @@ class DB:
         cur.execute(
             """INSERT INTO forwarded_message_metadata
             (id, originator_label, source_url, date, views, forwarded_count)
-            VALUES(?, ?, ?, ?, ?, ?)""",
+            VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT (id)
+            DO UPDATE SET originator_label=excluded.originator_label,
+                source_url=excluded.source_url,
+                date=excluded.date,
+                views=excluded.views,
+                forwarded_count=excluded.forwarded_count
+                """,
             (
                 fmd.id,
                 fmd.originator_label,

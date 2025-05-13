@@ -216,7 +216,7 @@ def main():
             )
         )
         try:
-            s = Sync(cfg, args.session, DB(args.data))
+            s = Sync(cfg, args.session, DB(args.data,cfg.get("timezone", "UTC")))
             s.sync(args.id, args.from_id)
         except KeyboardInterrupt as e:
             logging.info("sync cancelled manually")

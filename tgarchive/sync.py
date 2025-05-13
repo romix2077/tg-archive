@@ -61,7 +61,7 @@ class Sync:
         old_archived_chat_info = self.db.get_last_archived_chat_info()
         new_archived_chat_info = self._get_chat_info(group_id)
 
-        # Check if groups match
+        # Check if group match
         if (
             old_archived_chat_info
             and old_archived_chat_info.peer_id != new_archived_chat_info.peer_id
@@ -92,7 +92,7 @@ class Sync:
                 peername=old_archived_chat_info.peername,
                 title=old_archived_chat_info.title,
                 desc=old_archived_chat_info.desc,
-                archive_date=datetime.now().astimezone(timezone.utc),
+                archive_date=datetime.now().astimezone(),
                 avatar=old_archived_chat_info.avatar,
             )
             self.db.update_archived_chat_info(updated_date_info)
